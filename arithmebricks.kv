@@ -7,6 +7,7 @@
     brick_height: self.width / 10.3
 
     on_playing:
+        if title_label: self.remove_widget(title_label)
         symbols = '0134' if args[1] else ''
         for symbol in symbols: app.play_sound(symbol)
 
@@ -20,6 +21,11 @@
         Rectangle:
             pos: self.pos
             size: self.size
+
+    TitleLabel:
+        id: title_label
+        center: (root.center_x, root.center_y + root.brick_height / 2)
+        font_size: root.brick_height
 
     BoxLayout:
         canvas.before:
@@ -64,13 +70,20 @@
         Button:
             id: new_game_button
             size_hint: (0.16, 1)
-            text: 'Play again' if root.finished else 'New Game'
+            text: 'Play more' if root.finished else 'New Game'
             color: (0.6, 0.8, 1, 1) if root.playing else (1, 1, 1, 1)
             font_size: self.height / 2.8
             on_press:
                 difficulty_level = level_slider.value
                 if root.playing: root.popup_new_game(size=(root.width * 0.9, root.width * 0.3), on_dismiss=(lambda popup: root.new_game(difficulty_level) if popup.user_decision else None))
                 else: root.new_game(difficulty_level)
+
+
+<TitleLabel@Label>
+    color: 0.9, 0.3, 0.4, 1
+    text: 'ArithmeBricks'
+    halign: 'center'
+    valign: 'bottom'
 
 
 <Brick>:
