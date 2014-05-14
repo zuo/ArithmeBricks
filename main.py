@@ -31,6 +31,8 @@ from kivy.config import Config
 
 from kivy.app import App
 from kivy.animation import Animation
+from kivy.clock import Clock
+from kivy.logger import Logger
 from kivy.properties import (
     AliasProperty,
     BooleanProperty,
@@ -39,11 +41,12 @@ from kivy.properties import (
     OptionProperty,
     ReferenceListProperty,
 )
+from kivy.core.audio import SoundLoader
 from kivy.uix.behaviors import DragBehavior
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
-from kivy.utils import platform, interpolate
+from kivy.utils import QueryDict, platform, interpolate
 from kivy.vector import Vector
 
 
@@ -155,6 +158,15 @@ DIFFICULTY_TO_LIMITS = [
 
 MAX_RETRY = 40
 
+SOUND_FILENAME_PATTERN = 'sounds/arithmebricks-{0}_Seq01.wav'
+SOUND_ID_TO_SYMBOL = {
+    'eq': '==',
+    'add': '+',
+    'sub': '-',
+    'mul': '*',
+    'div': '/',
+}
+
 
 #
 # UI classes
@@ -163,8 +175,30 @@ class ArithmeBricksApp(App):
 
     def build(self):
         #self.icon = 'arithmebricks.png'
+        self.load_sounds()
         game = ArithmeBricksGame()
         return game
+
+    def load_sounds(self):
+        self.symbol_to_sound = QueryDict()
+        sound_ids = list('0123456789') + list(SOUND_ID_TO_SYMBOL)
+        for sound_id in sound_ids:
+            filename = SOUND_FILENAME_PATTERN.format(sound_id)
+            if filename is None:
+                Logger.warning('sound %r could not be loaded', sound_id)
+            else:
+                symbol = SOUND_ID_TO_SYMBOL.get(sound_id, sound_id)
+                self.symbol_to_sound[symbol] = SoundLoader.load(filename)
+
+    def play_sound(self, symbol, delay=None, volume=0.15):
+        sound = self.symbol_to_sound.get(symbol)
+        if sound is not None:
+            def callback(dt):
+                sound.volume = volume
+                sound.play()
+            if delay is None:
+                delay = random.randint(0, 20) / 50
+            Clock.schedule_once(callback, delay)
 
 
 class ArithmeBricksGame(Widget):
