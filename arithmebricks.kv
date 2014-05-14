@@ -56,7 +56,8 @@
         Button:
             id: new_game_button
             size_hint: (0.16, 1)
-            text: 'New game'
+            text: 'Play again' if root.finished else 'New Game'
+            color: (0.6, 0.8, 1, 1) if root.playing else (1, 1, 1, 1)
             font_size: self.height / 2.8
             on_press:
                 difficulty_level = level_slider.value

@@ -170,6 +170,7 @@ class ArithmeBricksApp(App):
 class ArithmeBricksGame(Widget):
 
     playing = BooleanProperty(False)
+    finished = BooleanProperty(False)
 
     # NOTE: values of properties without defaults
     # shall be set in the .kv file
@@ -177,7 +178,7 @@ class ArithmeBricksGame(Widget):
     brick_height = NumericProperty()
 
     def new_game(self, difficulty):
-        self.playing = False
+        self.playing = self.finished = False
         self.clear_bricks()
         self.provide_bricks(difficulty)
         self.playing = True
@@ -369,6 +370,8 @@ class Brick(DragBehavior, Label):
             if all(brick.state == 'equal' for brick in all_bricks):
                 for brick in all_bricks:
                     brick.state = 'final'
+                if self.parent.playing:
+                    self.parent.finished = True
                 self.parent.playing = False
         else:
             for brick in brick_seq:
