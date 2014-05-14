@@ -2,7 +2,8 @@ ArithmeBricks
 =============
 
 Copyright (c) 2014 Jan Kaliszewski (zuo). All rights reserved.
-Licensed under GPL-3 (see the `LICENCE` file for details).
+
+Licensed under GPL-3 (see the `LICENSE` file for details).
 
 
 How to install and run
@@ -16,6 +17,9 @@ at http://kivy.org/#download
 
 The main script/program of the game is, naturally, the `main.py`
 file.
+
+Up to now the game has been tested on Linux only but let's hope
+it works on other platforms as well. (That was the intention.) :)
 
 
 How to play
