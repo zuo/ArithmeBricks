@@ -26,12 +26,14 @@
         y: 0
 
         Button:
+            color: 0.6, 0.8, 1, 1
             size_hint: (0.08, 1)
             font_size: self.height / 2.8
             text: 'Quit'
             on_press:
                 root.popup_quit(size=(root.width * 0.9, root.width * 0.3))
         Button:
+            color: 0.6, 0.8, 1, 1
             size_hint: (0.08, 1)
             font_size: self.height / 2.8
             text: 'Help'
@@ -54,8 +56,8 @@
         Button:
             id: new_game_button
             size_hint: (0.16, 1)
-            font_size: self.height / 2.8
             text: 'New game'
+            font_size: self.height / 2.8
             on_press:
                 difficulty_level = level_slider.value
                 if root.playing: root.popup_new_game(size=(root.width * 0.9, root.width * 0.3), on_dismiss=(lambda popup: root.new_game(difficulty_level) if popup.user_decision else None))
@@ -83,7 +85,7 @@
 
     border_color: self.detached_border_color
 
-    max_snap_x_distance: 0.8 * self.width
+    max_snap_x_distance: 0.7 * self.width
     max_snap_y_distance: 0.66 * self.height
 
     canvas.before:
