@@ -6,21 +6,21 @@
     brick_width: self.width / 14.
     brick_height: self.width / 10.3
 
-    on_playing:
-        if title_label: self.remove_widget(title_label)
-        symbols = '0134' if args[1] else ''
-        for symbol in symbols: app.play_sound(symbol)
-
-    on_finished:
-        symbols = ['=='] + list('*/-+0123456789') if args[1] else []
-        for i, symbol in enumerate(symbols): app.play_sound(symbol, delay=(0.4 + i/10.), volume=0.1)
-
     canvas.before:
         Color:
             rgba: 0.5, 0.65, 0.9, 1
         Rectangle:
             pos: self.pos
             size: self.size
+
+    on_playing:
+        if title_label: self.remove_widget(title_label); self.title_label = title_label
+        symbols = '0134' if args[1] else ''
+        for symbol in symbols: app.play_sound(symbol)
+
+    on_finished:
+        symbols = ['=='] + list('*/-+0123456789') if args[1] else []
+        for i, symbol in enumerate(symbols): app.play_sound(symbol, delay=(0.4 + i/10.), volume=0.1)
 
     TitleLabel:
         id: title_label
