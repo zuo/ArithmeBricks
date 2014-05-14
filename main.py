@@ -19,19 +19,21 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from __future__ import division
+from __future__ import division, unicode_literals
 
 import operator
 import random
 
 import kivy
-kivy.require('1.8.0')  ##
+kivy.require('1.8.0')
+
+from kivy.config import Config
 
 from kivy.app import App
-from kivy.clock import Clock
-from kivy.config import Config
+from kivy.animation import Animation
 from kivy.properties import (
     AliasProperty,
+    BooleanProperty,
     NumericProperty,
     ListProperty,
     OptionProperty,
@@ -39,8 +41,9 @@ from kivy.properties import (
 )
 from kivy.uix.behaviors import DragBehavior
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
-from kivy.utils import QueryDict, platform, interpolate
+from kivy.utils import platform, interpolate
 from kivy.vector import Vector
 
 
@@ -48,105 +51,105 @@ from kivy.vector import Vector
 # Constants
 
 SYMBOL_TO_BRICK_TEXT = {
-    '==': u'=',
-    '+': u'+',
-    '-': u'\u2212',
-    '*': u'\xd7',
-    '/': u'\xf7',
+    '==': '=',
+    '+': '+',
+    '-': '\u2212',
+    '*': '\xd7',
+    '/': '\xf7',
 }
 BRICK_TEXT_TO_SYMBOL = {
     text: symbol for symbol, text in SYMBOL_TO_BRICK_TEXT.items()}
 
 DIFFICULTY_TO_LIMITS = [
     # 0
-    QueryDict(
+    dict(
         ops='+',
         min_number=1,
         max_number=4,
         max_total_number=8,
-        max_equalities=1,
         max_symbols_per_equality=6,
+        equalities=1,
     ),
     # 1
-    QueryDict(
+    dict(
         ops='+-',
         min_number=1,
         max_number=4,
         max_total_number=9,
-        max_equalities=1,
         max_symbols_per_equality=6,
+        equalities=1,
     ),
     # 2
-    QueryDict(
+    dict(
         ops='+-',
         min_number=1,
         max_number=4,
         max_total_number=10,
-        max_equalities=2,
         max_symbols_per_equality=6,
+        equalities=2,
     ),
     # 3
-    QueryDict(
+    dict(
         ops='+-',
         min_number=0,
         max_number=10,
         max_total_number=20,
-        max_equalities=2,
         max_symbols_per_equality=8,
+        equalities=2,
     ),
     # 4
-    QueryDict(
+    dict(
         ops='+-*',
         min_number=0,
         max_number=10,
         max_total_number=40,
-        max_equalities=2,
         max_symbols_per_equality=9,
+        equalities=2,
     ),
     # 5
-    QueryDict(
-        ops='+-*',
+    dict(
+        ops='+-*/',
         min_number=0,
         max_number=10,
-        max_total_number=100,
-        max_equalities=2,
-        max_symbols_per_equality=10,
+        max_total_number=40,
+        max_symbols_per_equality=9,
+        equalities=2,
     ),
     # 6
-    QueryDict(
+    dict(
         ops='+-*/',
         min_number=0,
         max_number=10,
         max_total_number=100,
-        max_equalities=2,
         max_symbols_per_equality=10,
+        equalities=2,
     ),
     # 7
-    QueryDict(
+    dict(
         ops='+-*/',
         min_number=0,
         max_number=20,
-        max_total_number=400,
-        max_equalities=2,
-        max_symbols_per_equality=12,
+        max_total_number=500,
+        max_symbols_per_equality=11,
+        equalities=2,
     ),
     # 8
-    QueryDict(
+    dict(
         ops='+-*/',
         min_number=0,
-        max_number=40,
-        max_total_number=2000,
-        max_equalities=3,
-        max_symbols_per_equality=14,
+        max_number=20,
+        max_total_number=1000,
+        max_symbols_per_equality=11,
+        equalities=3,
     ),
     # 9
-    QueryDict(
-        ops='/*+-',
+    dict(
+        ops='+-*/',
         min_number=0,
         max_number=100,
         max_total_number=5000,
-        max_equalities=3,
-        max_symbols_per_equality=16,
+        max_symbols_per_equality=12,
+        equalities=3,
     ),
 ]
 
@@ -159,19 +162,30 @@ MAX_RETRY = 40
 class ArithmeBricksApp(App):
 
     def build(self):
+        #self.icon = 'arithmebricks.png'
         game = ArithmeBricksGame()
-        Clock.schedule_once(lambda dt: game.new_game(5))
         return game
 
 
 class ArithmeBricksGame(Widget):
 
-    brick_width_div = NumericProperty(21.)
-    brick_height_div = NumericProperty(16.)
+    playing = BooleanProperty(False)
+
+    # NOTE: values of properties without defaults
+    # shall be set in the .kv file
+    brick_width = NumericProperty()
+    brick_height = NumericProperty()
 
     def new_game(self, difficulty):
-        self.clear_widgets()
+        self.playing = False
+        self.clear_bricks()
         self.provide_bricks(difficulty)
+        self.playing = True
+
+    def clear_bricks(self):
+        for brick in list(self.iter_all_bricks()):
+            Animation.cancel_all(brick)
+            self.remove_widget(brick)
 
     def provide_bricks(self, difficulty):
         for symbol in SymbolGenerator(difficulty):
@@ -189,29 +203,40 @@ class ArithmeBricksGame(Widget):
             assert symbol in '0123456789'
             brick = DigitBrick(parent=self)
             text = symbol
+        # workaround...
         brick.parent = None
         self.add_widget(brick)
+
         brick.text = text
         brick.pos = self.center
         brick.target_pos = target_pos
         return brick
 
     def new_pos(self):
-        for i in range(MAX_RETRY):
-            x = random.randint(5, self.width - 5 - (self.width //
-                                                    self.brick_width_div))
-            y = random.randint(5, self.height - 5 - (self.width //
-                                                     self.brick_height_div))
-            min_distance = self.width / self.brick_width_div
+        for i in range(MAX_RETRY * 2):
+            x = random.randint(5, self.width - 5 - int(self.brick_width))
+            y = random.randint(5 + int(self.brick_height),
+                               self.height - int(self.brick_height))
+            min_distance = self.brick_width
             _distance = Vector(x, y).distance
+            all_bricks = list(self.iter_all_bricks())
             if all(_distance(brick.target_pos) >= min_distance
-                   for brick in self.iter_all_bricks()):
+                   for brick in all_bricks):
                 break
         return x, y
 
     def iter_all_bricks(self):
         return (obj for obj in self.children
                 if isinstance(obj, Brick))
+
+    def popup_help(self, **popup_kwargs):
+        HelpPopup(**popup_kwargs).open()
+
+    def popup_quit(self, **popup_kwargs):
+        QuitPopup(**popup_kwargs).open()
+
+    def popup_new_game(self, **popup_kwargs):
+        NewGamePopup(**popup_kwargs).open()
 
 
 class Brick(DragBehavior, Label):
@@ -261,31 +286,24 @@ class Brick(DragBehavior, Label):
     def symbol(self):
         return self.text
 
-    #def on_state(self, instance, state):
-    #    print self.text, 'STATE:', state, self.target_pos
-
     def on_touch_down(self, touch):
-        if super(Brick, self).on_touch_down(touch):
+        if self.state != 'final' and super(Brick, self).on_touch_down(touch):
             self.move_started()
             return True
         return False
 
     def on_touch_up(self, touch):
-        self.target_pos = self.pos
-        if super(Brick, self).on_touch_up(touch):
+        if self.state != 'final' and super(Brick, self).on_touch_up(touch):
+            self.target_pos = self.pos
             self.move_stopped()
             return True
         return False
 
     def move_started(self):
-        if self.state == 'final':
-            return
         self.detach()
         self.state = 'move'
 
     def move_stopped(self):
-        if self.state == 'final':
-            return
         assert self.state == 'move'
         if not self.try_to_attach():
             self.state = 'detached'
@@ -351,7 +369,7 @@ class Brick(DragBehavior, Label):
             if all(brick.state == 'equal' for brick in all_bricks):
                 for brick in all_bricks:
                     brick.state = 'final'
-                "TODO: final"
+                self.parent.playing = False
         else:
             for brick in brick_seq:
                 brick.state = 'attached'
@@ -443,6 +461,23 @@ class EqualityBrick(OperatorBrick):
     pass
 
 
+class HelpPopup(Popup):
+    help_text = (
+        'Drag and drop the bricks to form one or more valid '
+        'equalities (e.g. [i]11-2=3+6[/i]). '
+        'All given bricks should be used. '
+        'There is always at least one valid solution. '
+    )
+
+
+class QuitPopup(Popup):
+    pass
+
+
+class NewGamePopup(Popup):
+    user_decision = BooleanProperty(False)
+
+
 #
 # Helper classes
 
@@ -452,11 +487,11 @@ class SymbolGenerator(object):
         pass
 
     def __init__(self, difficulty):
-        self.difficulty = difficulty
-        vars(self).update(DIFFICULTY_TO_LIMITS[difficulty])
+        self.difficulty = int(difficulty)
+        vars(self).update(DIFFICULTY_TO_LIMITS[self.difficulty])
 
     def __iter__(self):
-        max_equalities = self.max_equalities
+        equalities = self.equalities
         while True:
             left_max_symbols = random.randint(
                   self.max_symbols_per_equality // 3,
@@ -475,8 +510,8 @@ class SymbolGenerator(object):
             assert self.eval_expression(equality)
             for symbol in equality:
                 yield symbol
-            max_equalities -= 1
-            if max_equalities < 1 or random.randint(1, 7) == 7:
+            equalities -= 1
+            if equalities < 1:
                 break
 
     @staticmethod
