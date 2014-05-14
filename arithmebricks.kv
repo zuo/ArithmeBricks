@@ -3,25 +3,24 @@
 
 
 <ArithmeBricksGame>:
+    brick_width_div: 17.
+    brick_height_div: 13.
     canvas.before:
         Color:
             rgba: 0, 0.1, 0.3, 1
         Rectangle:
             pos: self.pos
             size: self.size
-    DigitBrick:
-        text: "1"
-    DigitBrick:
-        text: "2"
 
 
 <Brick>:
-    size: min(self.parent.width, self.parent.height) / 13, min(self.parent.width, self.parent.height) / 10
+    width: self.parent.width / self.parent.brick_width_div
+    height: self.parent.width / self.parent.brick_height_div
     x: min(max(self.x, 0), self.parent.width - self.width)
     y: min(max(self.y, 0), self.parent.height - self.height)
 
     bold: True
-    font_size: min(self.parent.width, self.parent.height) / 10
+    font_size: self.parent.width / self.parent.brick_height_div
 
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 10000000
@@ -33,6 +32,9 @@
     final_border_color: 1, 0.9, 0.4, 0.8
 
     border_color: self.detached_border_color
+
+    max_snap_x_distance: 0.8 * self.width
+    max_snap_y_distance: 0.66 * self.height
 
     canvas.before:
         Color:
@@ -51,8 +53,17 @@
         target_border_color = getattr(self, args[1] + '_border_color')
         Animation(border_color=target_border_color, duration=0.2, t='out_quint').start(self)
 
+    on_target_pos:
+        Animation(pos=args[1], duration=0.1, t='out_bounce').start(self)
+
 
 <DigitBrick>:
+    color: 0.8, 0.4, 0, 1
+    background_color: 1, 1, 0, 1
+    detached_border_color: 0.3, 0.2, 0.2, 1
+
+
+<OperatorBrick>:
     color: 0.8, 0.4, 0, 1
     background_color: 1, 1, 0, 1
     detached_border_color: 0.3, 0.2, 0.2, 1
