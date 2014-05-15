@@ -535,9 +535,9 @@ class TitleBrick(Brick):
 class HelpPopup(Popup):
     help_text = (
         'Drag and drop the bricks to form one or more valid '
-        'equalities (e.g. [i]11-2=3+6[/i]). '
+        'equalities (e.g. [i]2+2=3-1[/i]). '
         'All given bricks should be used. '
-        'There is always at least one valid solution. '
+        'There is always at least one valid solution.'
     )
 
 
