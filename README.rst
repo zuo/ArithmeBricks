@@ -9,24 +9,31 @@ Licensed under GPL-3 (see the *LICENSE* file for details).
 How to install and run
 ----------------------
 
-You need to install Kivy; then you will be able to run the game.
-To do that, download Kivy and follow the instructions accessible
-at http://kivy.org/#download
+Installation is typical for applications written using the Kivy
+library -- download Kivy and follow the instructions for your
+particular platform; see: http://kivy.org/#download
+
+Up to now, the game has been tested only on Linux but let's hope
+it works on other platforms as well. (That was the intention.) :)
 
 The main script/program of the game is, naturally, the *main.py*
 file.
-
-Up to now the game has been tested only on Linux but let's hope
-it works on other platforms as well. (That was the intention.) :)
 
 
 How to play
 -----------
 
-Use the slider at the bottom to choose the difficulty level;
-then press *New game*.
+Use the slider at the bottom to choose the difficulty level; then
+press *New game*.
 
-Drag and drop the bricks to form one or more valid equalities
-(e.g. *2+2=12-8*).  All given bricks should be used.  There is
-always at least one valid solution.
+Drag and drop the bricks (digits and operators) to form one or more
+valid equalities (such as *2+10=15-3*).  All given bricks should be
+used.  There is always at least one valid solution.
 
+
+Additional notes
+----------------
+
+Sounds samples have been made by the author, using
+`ZynAddSubFX http://zynaddsubfx.sourceforge.net/`_ and
+`Renoise http://renoise.com/`_.

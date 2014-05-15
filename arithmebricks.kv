@@ -6,12 +6,15 @@
 <ArithmeBricksGame>:
     brick_width: self.width / 14.
     brick_height: self.width / 10.3
+    aux_text_size: (self.width * self.height) / (self.width + self.height) / 12
 
     title_lines: ['ArithmeBricks', '', 'by zuo']
 
+    background_color: 0.5, 0.65, 0.9, 1
+
     canvas.before:
         Color:
-            rgba: 0.5, 0.65, 0.9, 1
+            rgba: self.background_color
         Rectangle:
             pos: self.pos
             size: self.size
@@ -37,57 +40,56 @@
         y: 0
 
         Button:
-            color: 0.6, 0.8, 1, 1
             size_hint: (0.08, 1)
             font_size: self.height / 2.8
             text: 'Quit'
             on_press:
-                root.popup_quit(size=(root.width * 0.9, root.width * 0.3))
+                root.popup_quit()
         Button:
-            color: 0.6, 0.8, 1, 1
             size_hint: (0.08, 1)
             font_size: self.height / 2.8
             text: 'Help'
             on_press:
-                root.popup_help(size=(root.width * 0.9, root.height * 0.9))
+                root.popup_help()
         Label:
             size_hint: (0.10, 1)
             font_size: self.height / 2.8
             align: 'center'
             text: 'Level:'
         Slider:
-            id: level_slider
+            id: difficulty_level_slider
             size_hint: (0.4, 1)
             min: 0
             max: 9
             step: 1
         Label:
             size_hint: (0.01, 1)
-            text: ''            
+            text: ''
         Button:
             id: new_game_button
             size_hint: (0.16, 1)
             text: 'Play more' if root.finished else 'New Game'
-            color: (0.6, 0.8, 1, 1) if root.playing else (1, 1, 1, 1)
+            color: (0.75, 0.9, 1, 1) if root.playing else (1, 1, 1, 1)
             font_size: self.height / 2.8
             on_press:
-                difficulty_level = level_slider.value
-                if root.playing: root.popup_new_game(size=(root.width * 0.9, root.width * 0.3), on_dismiss=(lambda popup: root.new_game(difficulty_level) if popup.user_decision else None))
-                else: root.new_game(difficulty_level)
+                if root.playing: root.popup_new_game(difficulty_level_slider.value)
+                else: root.new_game(difficulty_level_slider.value)
 
 
 <Brick>:
-    width: self.parent.brick_width if self.parent else 10
-    height: self.parent.brick_height if self.parent else 10
-    x: min(max(self.x, 0), self.parent.width - self.width) if self.parent else 10
-    y: min(max(self.y, self.height + 2), self.parent.height - self.height) if self.parent else 10
+    width: app.root.brick_width
+    height: app.root.brick_height
+    x: min(max(self.x, 0), app.root.width - self.width)
+    y: min(max(self.y, self.height + 2), app.root.height - self.height)
 
     bold: True
-    font_size: self.parent.brick_height if self.parent else 10
+    font_size: app.root.brick_height
 
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 10000000
     drag_distance: 0
+
+    background_color: 1, 1, 0.5, 1
 
     detached_border_color: 0.2, 0.3, 0.55, 0.8
     move_border_color: 0.6, 0.8, 1, 0.8
@@ -127,12 +129,10 @@
 
 <DigitBrick,TitleBrick>:
     color: 0.9, 0.3, 0.4, 1
-    background_color: 1, 1, 0.5, 1
 
 
 <OperatorBrick>:
     color: 0.2, 0.7, 0.4, 1
-    background_color: 1, 1, 0.5, 1
 
 
 <EqualityBrick>:
@@ -141,26 +141,40 @@
 
 
 <TitleBrick>:
-    font_size: self.parent.brick_height * 0.67 if self.parent else 10
+    font_size: app.root.brick_height * 0.67
     on_target_pos:
         if random.randint(1, 4) == 4: app.play_sound(random.choice('*-+368'), volume=0.15)
 
 
+<Button>:
+    color: 1, 1, 1, 1
+    background_color: 1, 1.5, 2, 1
+
+
+<YesNoButton@Button>:
+    size_hint: (0.4, 1)
+
+
+<Popup>:
+    separator_color: app.root.background_color
+    size_hint: None, None
+    title_size: app.root.aux_text_size
+
+
 <HelpPopup>:
     title: 'How to play'
-    size_hint: None, None
-    title_size: min(self.width, self.height) / 16
+    size: app.root.width * 0.9, app.root.height * 0.9
 
     BoxLayout:
         orientation: 'vertical'
         padding: root.title_size
-        spacing: root.title_size
+        spacing: root.title_size / 2
 
         Label:
             size_hint: (1, 0.8)
             markup: True
             text: root.help_text
-            text_size: (self.width - root.title_size * 2, self.height - root.title_size * 2)
+            text_size: (self.width - root.title_size, self.height - root.title_size)
             font_size: root.title_size
             halign: 'justify'
             valign: 'top'
@@ -174,22 +188,19 @@
 
 <QuitPopup>:
     title: 'Quit?'
-    size_hint: None, None
-    title_size: min(self.width, self.height) / 7
+    size: app.root.width * 0.9, max(120, app.root.aux_text_size * 8)
 
     BoxLayout:
         orientation: 'horizontal'
         padding: root.title_size
-        spacing: root.title_size
+        spacing: root.title_size / 2
 
-        Button:
-            size_hint: (0.5, 1)
+        YesNoButton:
             text: 'Yes'
             font_size: root.title_size
             on_press:
                 app.stop()
-        Button:
-            size_hint: (0.5, 1)
+        YesNoButton:
             text: 'No'
             font_size: root.title_size
             on_press:
@@ -198,23 +209,21 @@
 
 <NewGamePopup>:
     title: 'Abandon current game?'
-    size_hint: None, None
-    title_size: min(self.width, self.height) / 7
+    size: app.root.width * 0.9, max(120, app.root.aux_text_size * 8)
+    user_decision: False
 
     BoxLayout:
         orientation: 'horizontal'
         padding: root.title_size
-        spacing: root.title_size
+        spacing: root.title_size / 2
 
-        Button:
-            size_hint: (0.5, 1)
+        YesNoButton:
             text: 'Yes'
             font_size: root.title_size
             on_press:
                 root.user_decision = True
                 root.dismiss()
-        Button:
-            size_hint: (0.5, 1)
+        YesNoButton:
             text: 'No'
             font_size: root.title_size
             on_press:

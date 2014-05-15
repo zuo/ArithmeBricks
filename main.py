@@ -229,17 +229,15 @@ class ArithmeBricksGame(Widget):
         target_pos = self.new_pos()
         if symbol in SYMBOL_TO_BRICK_TEXT:
             if symbol == '==':
-                brick = EqualityBrick(parent=self)  # kv rules need parent here
+                brick = EqualityBrick()
             else:
-                brick = OperatorBrick(parent=self)
-            text = SYMBOL_TO_BRICK_TEXT[symbol]
+                brick = OperatorBrick()
+            brick.text = SYMBOL_TO_BRICK_TEXT[symbol]
         else:
             assert symbol in '0123456789'
-            brick = DigitBrick(parent=self)
-            text = symbol
-        brick.parent = None  # workaround...
+            brick = DigitBrick()
+            brick.text = symbol
         self.add_widget(brick)
-        brick.text = text
         brick.pos = self.center
         brick.target_pos = target_pos
         return brick
@@ -251,24 +249,31 @@ class ArithmeBricksGame(Widget):
                                self.height - int(self.brick_height))
             min_distance = self.brick_width
             _distance = Vector(x, y).distance
-            all_bricks = list(self.iter_all_bricks())
             if all(_distance(brick.target_pos) >= min_distance
-                   for brick in all_bricks):
+                   for brick in self.iter_all_bricks()):
                 break
         return x, y
+
+    def finish_game(self):
+        if self.playing:
+            self.finished = True
+        self.playing = False
 
     def iter_all_bricks(self):
         return (obj for obj in self.children
                 if isinstance(obj, Brick))
 
-    def popup_help(self, **popup_kwargs):
-        HelpPopup(**popup_kwargs).open()
+    def popup_help(self):
+        HelpPopup().open()
 
-    def popup_quit(self, **popup_kwargs):
-        QuitPopup(**popup_kwargs).open()
+    def popup_quit(self):
+        QuitPopup().open()
 
-    def popup_new_game(self, **popup_kwargs):
-        NewGamePopup(**popup_kwargs).open()
+    def popup_new_game(self, difficulty_level):
+        def on_dismiss(popup):
+            if popup.user_decision:
+                self.new_game(difficulty_level)
+        NewGamePopup(on_dismiss=on_dismiss).open()
 
     def show_title(self):
         mid_row = len(self.title_lines) / 2
@@ -288,8 +293,7 @@ class ArithmeBricksGame(Widget):
             if char == ' ':
                 continue
             pos = self.new_pos()
-            brick = TitleBrick(parent=self)  # kv rules need parent here
-            brick.parent = None  # workaround...
+            brick = TitleBrick()
             self.add_widget(brick)
             brick.text = char
             brick.pos = pos
@@ -303,7 +307,6 @@ class Brick(DragBehavior, Label):
 
     # NOTE: values of properties without defaults
     # shall be set in the .kv file
-
     background_color = ListProperty()
     border_color = ListProperty()
 
@@ -314,6 +317,9 @@ class Brick(DragBehavior, Label):
     attached_border_color = ListProperty()
     equal_border_color = ListProperty()
     final_border_color = ListProperty()
+
+    max_snap_x_distance = NumericProperty()
+    max_snap_y_distance = NumericProperty()
 
     target_x = NumericProperty(0)
     target_y = NumericProperty(0)
@@ -327,9 +333,6 @@ class Brick(DragBehavior, Label):
         get_target_right, set_target_right, bind=('target_x', 'width'))
 
     target_right_pos = ReferenceListProperty(target_right, target_y)
-
-    max_snap_x_distance = NumericProperty()
-    max_snap_y_distance = NumericProperty()
 
     state = OptionProperty('detached', options=[
         'detached',
@@ -429,9 +432,7 @@ class Brick(DragBehavior, Label):
             if all(brick.state == 'equal' for brick in all_bricks):
                 for brick in all_bricks:
                     brick.state = 'final'
-                if self.parent.playing:
-                    self.parent.finished = True
-                self.parent.playing = False
+                self.parent.finish_game()
         else:
             for brick in brick_seq:
                 brick.state = 'attached'
@@ -489,7 +490,7 @@ class Brick(DragBehavior, Label):
             if brick == self:
                 continue
             # (for checking snap limits, using x and y separately
-            # plays better than using real x*y distance)
+            # plays better than using the real x*y distance)
             y_distance = abs(self.target_y - brick.target_y)
             if (x_distance > self.max_snap_x_distance or
                   y_distance > self.max_snap_y_distance):
@@ -534,8 +535,8 @@ class TitleBrick(Brick):
 
 class HelpPopup(Popup):
     help_text = (
-        'Drag and drop the bricks to form one or more valid '
-        'equalities (e.g. [i]2+2=12-8[/i]). '
+        'Drag and drop the bricks (digits and operators) '
+        'to form valid equalities (e.g. [i]2+10=15-3[/i]).\n'
         'All given bricks should be used. '
         'There is always at least one valid solution.'
     )
@@ -675,8 +676,8 @@ class SymbolGenerator(object):
     def _random_divisor(cls, dividend, min_num, max_num):
         assert dividend is not None
         min_num = max(1, min_num)
-        if random.randint(0, 10) != 10:
-            min_num = max(min_num, random.randint(1, 4))
+        if random.randint(0, 40) != 40:  # mostly avoid 1
+            min_num = max(min_num, random.randint(2, 4))
         max_num = min(dividend // 2 + 1, max_num)
         if max_num < min_num:
             raise cls._FailedToMakeEquality
@@ -702,8 +703,8 @@ class SymbolGenerator(object):
         assert multiplicand is not None
         if multiplicand != 0:
             max_num = max_total_number // multiplicand
-        if random.randint(0, 10) != 10:
-            min_num = max(min_num, random.randint(1, 4))
+        if random.randint(0, 40) != 40:  # mostly avoid 0, often avoid 1...
+            min_num = max(min_num, random.randint(random.randint(1, 3), 4))
         if max_num < min_num:
             raise cls._FailedToMakeEquality
         return random.randint(min_num, max_num)
