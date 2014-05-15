@@ -168,6 +168,13 @@ SOUND_ID_TO_SYMBOL = {
     'div': '/',
 }
 
+HELP_TEXT = (
+    'Drag and drop the bricks (digits and operators) '
+    'to form valid equalities (e.g. [i]2+10=15-3[/i]).\n'
+    'All given bricks should be used. '
+    'There is always at least one valid solution.'
+)
+
 
 #
 # UI classes
@@ -224,9 +231,9 @@ class ArithmeBricksGame(Widget):
 
     def provide_bricks(self, difficulty):
         for symbol in SymbolGenerator(difficulty):
-            self.new_brick(symbol)
+            self.add_new_brick(symbol)
 
-    def new_brick(self, symbol):
+    def add_new_brick(self, symbol):
         target_pos = self.new_pos()
         if symbol in SYMBOL_TO_BRICK_TEXT:
             if symbol == '==':
@@ -241,7 +248,6 @@ class ArithmeBricksGame(Widget):
         self.add_widget(brick)
         brick.pos = self.center
         brick.target_pos = target_pos
-        return brick
 
     def new_pos(self):
         for i in range(MAX_RETRY * 2):
@@ -255,14 +261,14 @@ class ArithmeBricksGame(Widget):
                 break
         return x, y
 
+    def iter_all_bricks(self):
+        return (obj for obj in self.children
+                if isinstance(obj, Brick))
+
     def finish_game(self):
         if self.playing:
             self.finished = True
         self.playing = False
-
-    def iter_all_bricks(self):
-        return (obj for obj in self.children
-                if isinstance(obj, Brick))
 
     def popup_help(self):
         HelpPopup().open()
@@ -352,25 +358,19 @@ class Brick(DragBehavior, Label):
 
     def on_touch_down(self, touch):
         if self.state != 'final' and super(Brick, self).on_touch_down(touch):
-            self.move_started()
+            self.detach()
+            self.state = 'move'
             return True
         return False
 
     def on_touch_up(self, touch):
         if self.state != 'final' and super(Brick, self).on_touch_up(touch):
+            assert self.state == 'move'
             self.target_pos = self.pos
-            self.move_stopped()
+            if not self.try_to_attach():
+                self.state = 'detached'
             return True
         return False
-
-    def move_started(self):
-        self.detach()
-        self.state = 'move'
-
-    def move_stopped(self):
-        assert self.state == 'move'
-        if not self.try_to_attach():
-            self.state = 'detached'
 
     def detach(self):
         self.update_states_before_detach()
@@ -535,12 +535,7 @@ class TitleBrick(Brick):
 
 
 class HelpPopup(Popup):
-    help_text = (
-        'Drag and drop the bricks (digits and operators) '
-        'to form valid equalities (e.g. [i]2+10=15-3[/i]).\n'
-        'All given bricks should be used. '
-        'There is always at least one valid solution.'
-    )
+    help_text = HELP_TEXT
 
 
 class QuitPopup(Popup):
