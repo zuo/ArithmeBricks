@@ -11,7 +11,7 @@ How to install and run
 
 Installation is typical for applications based on the Kivy
 library: download Kivy and follow the instructions for your
-particular platform – see: http://kivy.org/#download
+particular platform - see: http://kivy.org/#download
 
 Up to now, the game has been tested only on Linux but let's hope
 it works on other platforms as well. (That was the intention.) :)
@@ -27,7 +27,7 @@ Use the slider at the bottom of the screen to choose the difficulty
 level; then press the *New game*/*Play more* button.
 
 Drag and drop the bricks (digits and operators) to form one or more
-valid equalities, such as *2+10=15−3*.  All given bricks should be
+valid equalities, such as *2+10=15-3*.  All given bricks should be
 used.  There is always at least one valid solution.
 
 
