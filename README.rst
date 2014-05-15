@@ -10,7 +10,6 @@ How to install and run
 ----------------------
 
 You need to install Kivy; then you will be able to run the game.
-
 To do that, download Kivy and follow the instructions accessible
 at http://kivy.org/#download
 
