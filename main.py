@@ -1,3 +1,4 @@
+#!/usr/bin/kivy
 # -*- coding: utf-8 -*-
 
 """
