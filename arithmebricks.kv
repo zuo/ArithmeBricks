@@ -1,10 +1,13 @@
 #:kivy 1.8.0
 #: import Animation kivy.animation.Animation
+#: import random random
 
 
 <ArithmeBricksGame>:
     brick_width: self.width / 14.
     brick_height: self.width / 10.3
+
+    title_lines: ['ArithmeBricks', '', 'by zuo']
 
     canvas.before:
         Color:
@@ -14,18 +17,12 @@
             size: self.size
 
     on_playing:
-        if title_label: self.remove_widget(title_label); self.title_label = title_label
         symbols = '0134' if args[1] else ''
         for symbol in symbols: app.play_sound(symbol)
 
     on_finished:
         symbols = ['=='] + list('*/-+0123456789') if args[1] else []
         for i, symbol in enumerate(symbols): app.play_sound(symbol, delay=(0.4 + i/10.), volume=0.1)
-
-    TitleLabel:
-        id: title_label
-        center: (root.center_x, root.center_y + root.brick_height / 2)
-        font_size: root.brick_height
 
     BoxLayout:
         canvas.before:
@@ -79,13 +76,6 @@
                 else: root.new_game(difficulty_level)
 
 
-<TitleLabel@Label>
-    color: 0.9, 0.3, 0.4, 1
-    text: 'ArithmeBricks'
-    halign: 'center'
-    valign: 'bottom'
-
-
 <Brick>:
     width: self.parent.brick_width if self.parent else 10
     height: self.parent.brick_height if self.parent else 10
@@ -135,7 +125,7 @@
         Animation(pos=args[1], duration=0.1, t='out_bounce').start(self)
 
 
-<DigitBrick>:
+<DigitBrick,TitleBrick>:
     color: 0.9, 0.3, 0.4, 1
     background_color: 1, 1, 0.5, 1
 
@@ -148,6 +138,12 @@
 <EqualityBrick>:
     color: 0.4, 1, 0.4, 1
     background_color: 0.4, 0.55, 1, 1
+
+
+<TitleBrick>:
+    font_size: self.parent.brick_height * 0.67 if self.parent else 10
+    on_target_pos:
+        if random.randint(1, 4) == 4: app.play_sound(random.choice('*-+368'), volume=0.15)
 
 
 <HelpPopup>:

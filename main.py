@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import division, unicode_literals
 
+import functools
 import operator
 import random
 
@@ -32,7 +33,7 @@ from kivy.config import Config
 from kivy.app import App
 from kivy.animation import Animation
 from kivy.clock import Clock
-from kivy.logger import Logger
+from kivy.core.audio import SoundLoader
 from kivy.properties import (
     AliasProperty,
     BooleanProperty,
@@ -41,7 +42,6 @@ from kivy.properties import (
     OptionProperty,
     ReferenceListProperty,
 )
-from kivy.core.audio import SoundLoader
 from kivy.uix.behaviors import DragBehavior
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
@@ -66,93 +66,93 @@ BRICK_TEXT_TO_SYMBOL = {
 DIFFICULTY_TO_LIMITS = [
     # 0
     dict(
+        equalities=1,
         ops='+',
         min_number=1,
         max_number=4,
         max_total_number=8,
         max_symbols_per_equality=6,
-        equalities=1,
     ),
     # 1
     dict(
+        equalities=1,
         ops='+-',
         min_number=1,
         max_number=4,
         max_total_number=9,
         max_symbols_per_equality=6,
-        equalities=1,
     ),
     # 2
     dict(
+        equalities=1,
         ops='+-',
         min_number=1,
-        max_number=4,
-        max_total_number=10,
-        max_symbols_per_equality=6,
-        equalities=2,
+        max_number=10,
+        max_total_number=20,
+        max_symbols_per_equality=10,
     ),
     # 3
     dict(
-        ops='+-',
-        min_number=0,
+        equalities=1,
+        ops='+-*',
+        min_number=1,
         max_number=10,
         max_total_number=20,
-        max_symbols_per_equality=8,
-        equalities=2,
+        max_symbols_per_equality=11,
     ),
     # 4
     dict(
-        ops='+-*',
-        min_number=0,
+        equalities=1,
+        ops='+-*/',
+        min_number=1,
         max_number=10,
-        max_total_number=40,
-        max_symbols_per_equality=9,
-        equalities=2,
+        max_total_number=20,
+        max_symbols_per_equality=12,
     ),
     # 5
     dict(
-        ops='+-*/',
-        min_number=0,
-        max_number=10,
-        max_total_number=40,
-        max_symbols_per_equality=9,
-        equalities=2,
-    ),
-    # 6
-    dict(
+        equalities=1,
         ops='+-*/',
         min_number=0,
         max_number=10,
         max_total_number=100,
-        max_symbols_per_equality=10,
+        max_symbols_per_equality=13,
+    ),
+    # 6
+    dict(
         equalities=2,
+        ops='+-*',
+        min_number=0,
+        max_number=10,
+        max_total_number=40,
+        max_symbols_per_equality=8,
     ),
     # 7
     dict(
+        equalities=2,
         ops='+-*/',
         min_number=0,
-        max_number=20,
-        max_total_number=500,
-        max_symbols_per_equality=11,
-        equalities=2,
+        max_number=10,
+        max_total_number=100,
+        max_symbols_per_equality=9,
     ),
     # 8
     dict(
+        equalities=2,
         ops='+-*/',
         min_number=0,
         max_number=20,
         max_total_number=1000,
         max_symbols_per_equality=11,
-        equalities=3,
     ),
     # 9
     dict(
+        equalities=3,
         ops='+-*/',
         min_number=0,
-        max_number=100,
-        max_total_number=5000,
+        max_number=50,
+        max_total_number=2000,
         max_symbols_per_equality=12,
-        equalities=3,
     ),
 ]
 
@@ -174,21 +174,19 @@ SOUND_ID_TO_SYMBOL = {
 class ArithmeBricksApp(App):
 
     def build(self):
-        #self.icon = 'arithmebricks.png'
+        self.icon = 'icon.png'
         self.load_sounds()
         game = ArithmeBricksGame()
+        Clock.schedule_once(lambda dt: game.show_title(), 1)
         return game
 
     def load_sounds(self):
         self.symbol_to_sound = QueryDict()
-        sound_ids = list('0123456789') + list(SOUND_ID_TO_SYMBOL)
+        sound_ids = list('0123456789X') + list(SOUND_ID_TO_SYMBOL)
         for sound_id in sound_ids:
             filename = SOUND_FILENAME_PATTERN.format(sound_id)
-            if filename is None:
-                Logger.warning('sound %r could not be loaded', sound_id)
-            else:
-                symbol = SOUND_ID_TO_SYMBOL.get(sound_id, sound_id)
-                self.symbol_to_sound[symbol] = SoundLoader.load(filename)
+            symbol = SOUND_ID_TO_SYMBOL.get(sound_id, sound_id)
+            self.symbol_to_sound[symbol] = SoundLoader.load(filename)
 
     def play_sound(self, symbol, delay=None, volume=0.15):
         sound = self.symbol_to_sound.get(symbol)
@@ -210,6 +208,7 @@ class ArithmeBricksGame(Widget):
     # shall be set in the .kv file
     brick_width = NumericProperty()
     brick_height = NumericProperty()
+    title_lines = ListProperty()
 
     def new_game(self, difficulty):
         self.playing = self.finished = False
@@ -238,10 +237,8 @@ class ArithmeBricksGame(Widget):
             assert symbol in '0123456789'
             brick = DigitBrick(parent=self)
             text = symbol
-        # workaround...
-        brick.parent = None
+        brick.parent = None  # workaround...
         self.add_widget(brick)
-
         brick.text = text
         brick.pos = self.center
         brick.target_pos = target_pos
@@ -272,6 +269,34 @@ class ArithmeBricksGame(Widget):
 
     def popup_new_game(self, **popup_kwargs):
         NewGamePopup(**popup_kwargs).open()
+
+    def show_title(self):
+        mid_row = len(self.title_lines) / 2
+        for row, line_text in enumerate(self.title_lines):
+            Clock.schedule_once(
+                functools.partial(
+                    self.show_title_row,
+                    mid_row,
+                    row,
+                    line_text,
+                ),
+                row * 0.3)
+
+    def show_title_row(self, mid_row, row, line_text, dt):
+        mid_col = len(line_text) / 2
+        for col, char in enumerate(line_text):
+            if char == ' ':
+                continue
+            pos = self.new_pos()
+            brick = TitleBrick(parent=self)
+            brick.parent = None  # workaround...
+            self.add_widget(brick)
+            brick.text = char
+            brick.pos = pos
+            brick.target_pos = (
+                self.center_x + (col - mid_col) * self.brick_width,
+                self.center_y - (row - mid_row) * self.brick_height -
+                    self.brick_height / 2)
 
 
 class Brick(DragBehavior, Label):
@@ -496,6 +521,15 @@ class OperatorBrick(Brick):
 
 class EqualityBrick(OperatorBrick):
     pass
+
+
+class TitleBrick(Brick):
+
+    def on_touch_down(self, touch):
+        return False
+
+    def on_touch_up(self, touch):
+        return False
 
 
 class HelpPopup(Popup):
