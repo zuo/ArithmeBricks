@@ -27,6 +27,6 @@ Use the slider at the bottom to choose the difficulty level;
 then press *New game*.
 
 Drag and drop the bricks to form one or more valid equalities
-(e.g. *2+2=3-1*).  All given bricks should be used.  There is
+(e.g. *2+2=12-8*).  All given bricks should be used.  There is
 always at least one valid solution.
 

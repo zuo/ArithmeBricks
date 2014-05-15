@@ -229,7 +229,7 @@ class ArithmeBricksGame(Widget):
         target_pos = self.new_pos()
         if symbol in SYMBOL_TO_BRICK_TEXT:
             if symbol == '==':
-                brick = EqualityBrick(parent=self)
+                brick = EqualityBrick(parent=self)  # kv rules need parent here
             else:
                 brick = OperatorBrick(parent=self)
             text = SYMBOL_TO_BRICK_TEXT[symbol]
@@ -288,7 +288,7 @@ class ArithmeBricksGame(Widget):
             if char == ' ':
                 continue
             pos = self.new_pos()
-            brick = TitleBrick(parent=self)
+            brick = TitleBrick(parent=self)  # kv rules need parent here
             brick.parent = None  # workaround...
             self.add_widget(brick)
             brick.text = char
@@ -535,7 +535,7 @@ class TitleBrick(Brick):
 class HelpPopup(Popup):
     help_text = (
         'Drag and drop the bricks to form one or more valid '
-        'equalities (e.g. [i]2+2=3-1[/i]). '
+        'equalities (e.g. [i]2+2=12-8[/i]). '
         'All given bricks should be used. '
         'There is always at least one valid solution.'
     )
