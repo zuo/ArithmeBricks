@@ -47,7 +47,7 @@ from kivy.uix.behaviors import DragBehavior
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
-from kivy.utils import QueryDict, platform, interpolate
+from kivy.utils import QueryDict, interpolate, platform
 from kivy.vector import Vector
 
 
@@ -135,7 +135,7 @@ DIFFICULTY_TO_LIMITS = [
         min_number=0,
         max_number=10,
         max_total_number=100,
-        max_symbols_per_equality=9,
+        max_symbols_per_equality=10,
     ),
     # 8
     dict(
@@ -144,7 +144,7 @@ DIFFICULTY_TO_LIMITS = [
         min_number=0,
         max_number=20,
         max_total_number=1000,
-        max_symbols_per_equality=11,
+        max_symbols_per_equality=12,
     ),
     # 9
     dict(
@@ -190,7 +190,7 @@ class ArithmeBricksApp(App):
 
     def load_sounds(self):
         self.symbol_to_sound = QueryDict()
-        sound_ids = list('0123456789X') + list(SOUND_ID_TO_SYMBOL)
+        sound_ids = list('0123456789') + list(SOUND_ID_TO_SYMBOL)
         for sound_id in sound_ids:
             filename = SOUND_FILENAME_PATTERN.format(sound_id)
             symbol = SOUND_ID_TO_SYMBOL.get(sound_id, sound_id)
@@ -406,21 +406,22 @@ class Brick(DragBehavior, Label):
         return True
 
     def attach(self, left_brick, right_brick):
+        target_pos = None
         if left_brick is not None:
             left_brick.right_attached_brick = self.proxy_ref
             self.left_attached_brick = left_brick.proxy_ref
-            self.target_pos = left_brick.target_right_pos
+            target_pos = left_brick.target_right_pos
         if right_brick is not None:
             right_brick.left_attached_brick = self.proxy_ref
             self.right_attached_brick = right_brick.proxy_ref
             target_pos = (right_brick.target_x - self.width,
                           right_brick.target_y)
-            if left_brick is None:
-                self.target_pos = target_pos
-            else:
-                self.target_pos = interpolate(tuple(left_brick.target_right_pos),
-                                              target_pos,
-                                              step=2)
+            if left_brick is not None:
+                target_pos = interpolate(tuple(left_brick.target_right_pos),
+                                         target_pos,
+                                         step=2)
+        if target_pos is not None:
+            self.target_pos = target_pos
 
     def update_states_after_attach(self):
         brick_seq = self.collect_all_left()
@@ -560,6 +561,7 @@ class SymbolGenerator(object):
 
     def __iter__(self):
         equalities = self.equalities
+        max_num_digits = len(str(self.max_number))
         while True:
             left_max_symbols = random.randint(
                   self.max_symbols_per_equality // 3,
@@ -569,98 +571,94 @@ class SymbolGenerator(object):
                   left_max_symbols -
                   1)
             try:
-                equality, total_num = self.make_left_side(left_max_symbols)
+                equality, total_num = self.make_left_side(left_max_symbols,
+                                                          max_num_digits)
                 equality.append('==')
                 equality.extend(self.make_right_side(total_num,
-                                                     right_max_symbols))
+                                                     right_max_symbols,
+                                                     max_num_digits))
             except self._FailedToMakeEquality:
                 continue
-            assert self.eval_expression(equality)
+            assert '==' in equality and eval(''.join(equality))
             for symbol in equality:
                 yield symbol
             equalities -= 1
             if equalities < 1:
                 break
 
-    @staticmethod
-    def eval_expression(symbols):
-        expr_str = ''.join(symbols)
-        try:
-            return eval(expr_str)
-        except ArithmeticError:
-            return None
-
-    def make_left_side(self, cur_max_symbols):
-        max_number_digits = len(str(self.max_number))
-        total_num = random.randint(self.min_number, self.max_number)
-        symbols = list(str(total_num))
+    def make_left_side(self, cur_max_symbols, max_num_digits):
+        num = div_mul_operand = random.randint(self.min_number,
+                                               self.max_number)
+        symbols = list(str(num))
+        if len(symbols) > cur_max_symbols - 2:
+            raise self._FailedToMakeEquality
         for i in range(MAX_RETRY):
             op = random.choice(self.ops)
             if op == '/':
-                number = self._random_divisor(total_num,
-                                              self.min_number,
-                                              self.max_number)
+                num = self._random_divisor(div_mul_operand,
+                                           self.min_number,
+                                           self.max_number)
             elif op == '*':
-                number = self._random_multiplier(total_num,
-                                                 self.min_number,
-                                                 self.max_number,
-                                                 self.max_total_number)
+                num = self._random_multiplier(div_mul_operand,
+                                              self.min_number,
+                                              self.max_number,
+                                              self.max_total_number)
             else:
-                number = random.randint(self.min_number,
-                                        self.max_number)
-            draft = symbols[:]
-            draft.append(op)
-            draft.extend(str(number))
-            total_num = self.eval_expression(draft)
-            if (total_num is None or
-                  total_num != int(total_num) or
-                  total_num < self.min_number or
+                num = random.randint(self.min_number, self.max_number)
+            draft_symbols = symbols[:]
+            draft_symbols.append(op)
+            draft_symbols.extend(str(num))
+            total_num = eval(''.join(draft_symbols))
+            assert total_num == int(total_num)
+            if (total_num < self.min_number or
                   total_num > self.max_total_number or
-                  len(draft) > cur_max_symbols):
+                  len(draft_symbols) > cur_max_symbols):
                 continue
-            symbols = draft
+            div_mul_operand = self._new_div_mul_operand(op,
+                                                        div_mul_operand,
+                                                        num)
+            symbols = draft_symbols
             if len(symbols) > (cur_max_symbols -
-                              max_number_digits -
-                              random.randint(1, max_number_digits + 2)):
+                               max_num_digits -
+                               random.randint(1, max_num_digits + 2)):
                 break
         else:
             raise self._FailedToMakeEquality
         return symbols, int(total_num)
 
-    def make_right_side(self, total_num, cur_max_symbols):
+    def make_right_side(self, total_num, cur_max_symbols, max_num_digits):
         assert total_num <= self.max_total_number
-        max_number_digits = len(str(self.max_number))
         symbols = list(str(total_num))
         if len(symbols) > cur_max_symbols:
             raise self._FailedToMakeEquality
         if len(symbols) > (cur_max_symbols -
-                          max_number_digits -
-                          1):
+                           max_num_digits -
+                           1):
             return symbols
         for i in range(MAX_RETRY):
             op = random.choice(self.ops)
             if op == '+':
-                number2 = random.randint(self.min_number, self.max_number)
-                number1 = total_num - number2
+                num2 = random.randint(self.min_number, self.max_number)
+                num1 = total_num - num2
             elif op == '-':
-                number2 = random.randint(self.min_number, self.max_number)
-                number1 = total_num + number2
+                num2 = random.randint(self.min_number, self.max_number)
+                num1 = total_num + num2
             elif op == '*':
-                number2 = self._random_divisor(total_num,
-                                               self.min_number,
-                                               self.max_number)
-                number1 = total_num // number2
-                assert number1 == total_num / number2
+                num2 = self._random_divisor(total_num,
+                                            self.min_number,
+                                            self.max_number)
+                num1 = total_num // num2
+                assert num1 == total_num / num2
             elif op == '/':
-                number2 = self._random_multiplier(total_num,
-                                                  max(1, self.min_number),
-                                                  self.max_number,
-                                                  self.max_total_number)
-                number1 = total_num * number2
-            num1_str = str(number1)
-            num2_str = str(number2)
-            if (self.min_number <= number1 <= self.max_total_number and
-                  self.min_number <= number2 <= self.max_number and
+                num2 = self._random_multiplier(total_num,
+                                               max(1, self.min_number),
+                                               self.max_number,
+                                               self.max_total_number)
+                num1 = total_num * num2
+            num1_str = str(num1)
+            num2_str = str(num2)
+            if (self.min_number <= num1 <= self.max_total_number and
+                  self.min_number <= num2 <= self.max_number and
                   len(num1_str + op + num2_str) <= cur_max_symbols):
                 symbols = list(num1_str)
                 symbols.append(op)
@@ -670,7 +668,6 @@ class SymbolGenerator(object):
 
     @classmethod
     def _random_divisor(cls, dividend, min_num, max_num):
-        assert dividend is not None
         min_num = max(1, min_num)
         if random.randint(0, 40) != 40:  # mostly avoid 1
             min_num = max(min_num, random.randint(2, 4))
@@ -678,25 +675,24 @@ class SymbolGenerator(object):
         if max_num < min_num:
             raise cls._FailedToMakeEquality
         for i in range(MAX_RETRY):
-            number = random.randint(min_num, max_num)
-            if dividend % number == 0:
+            num = random.randint(min_num, max_num)
+            if dividend % num == 0:
                 break
         else:
             max_num = min(10, max_num)
             if max_num < min_num:
                 raise cls._FailedToMakeEquality
             for i in range(MAX_RETRY):
-                number = random.randint(min_num, max_num)
-                if dividend % number == 0:
+                num = random.randint(min_num, max_num)
+                if dividend % num == 0:
                     break
             else:
                 raise cls._FailedToMakeEquality
-        return number
+        return num
 
     @classmethod
     def _random_multiplier(cls, multiplicand, min_num, max_num,
                            max_total_number):
-        assert multiplicand is not None
         if multiplicand != 0:
             max_num = max_total_number // multiplicand
         if random.randint(0, 40) != 40:  # mostly avoid 0, often avoid 1...
@@ -704,6 +700,16 @@ class SymbolGenerator(object):
         if max_num < min_num:
             raise cls._FailedToMakeEquality
         return random.randint(min_num, max_num)
+
+    @staticmethod
+    def _new_div_mul_operand(op, div_mul_operand, num):
+        if op == '/':
+            return div_mul_operand / num
+        elif op == '*':
+            return div_mul_operand * num
+        else:
+            assert op in ('+', '-')
+            return num
 
 
 #
