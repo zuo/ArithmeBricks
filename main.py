@@ -295,6 +295,8 @@ class ArithmeBricksGame(Widget):
                 row * 0.3)
 
     def show_title_row(self, mid_row, row, line_text, dt):
+        if self.playing:
+            return
         mid_col = len(line_text) / 2
         for col, char in enumerate(line_text):
             if char == ' ':
