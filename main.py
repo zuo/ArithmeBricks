@@ -87,7 +87,7 @@ DIFFICULTY_TO_LIMITS = [
     dict(
         equalities=1,
         ops='+-',
-        min_number=1,
+        min_number=0,
         max_number=10,
         max_total_number=20,
         max_symbols_per_equality=10,
@@ -96,7 +96,7 @@ DIFFICULTY_TO_LIMITS = [
     dict(
         equalities=1,
         ops='+-*',
-        min_number=1,
+        min_number=0,
         max_number=10,
         max_total_number=20,
         max_symbols_per_equality=11,
@@ -105,7 +105,7 @@ DIFFICULTY_TO_LIMITS = [
     dict(
         equalities=1,
         ops='+-*/',
-        min_number=1,
+        min_number=0,
         max_number=10,
         max_total_number=20,
         max_symbols_per_equality=12,
@@ -560,6 +560,13 @@ class SymbolGenerator(object):
         vars(self).update(DIFFICULTY_TO_LIMITS[self.difficulty])
 
     def __iter__(self):
+        while True:
+            generated_symbols = list(self.generate_symbols())
+            if self.are_too_easy(generated_symbols):
+                continue
+            return iter(generated_symbols)
+
+    def generate_symbols(self):
         equalities = self.equalities
         max_num_digits = len(str(self.max_number))
         while True:
@@ -585,6 +592,31 @@ class SymbolGenerator(object):
             equalities -= 1
             if equalities < 1:
                 break
+
+    def are_too_easy(self, generated_symbols):
+        muls_and_divs = (generated_symbols.count('*') +
+                         generated_symbols.count('/'))
+        if ('*' in self.ops or '/' in self.ops) and not muls_and_divs:
+            # we want to eliminate symbol sets that include neither
+            # '*' nor '/' when any of that operators is available
+            return True
+        # we also want to eliminate symbol sets that are too easy because of
+        # the possibility of `... + 0 * <any digits>` and similar tricks with 0
+        zeros = generated_symbols.count('0')
+        if not zeros:
+            return False
+        if not muls_and_divs:
+            return False
+        assert zeros > 0 and muls_and_divs
+        if zeros == 1 and not ('+' in generated_symbols or
+                               '-' in generated_symbols):
+            return False
+        if ((zeros == 1 or muls_and_divs == 1) and
+              self.equalities == 1 and
+              random.randint(1, 5) == 5):
+            # sometimes we are lenient :) (but never on harder levels)
+            return False
+        return True
 
     def make_left_side(self, cur_max_symbols, max_num_digits):
         num = div_mul_operand = random.randint(self.min_number,
