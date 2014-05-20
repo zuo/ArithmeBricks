@@ -4,9 +4,15 @@
 
 
 <ArithmeBricksGame>:
-    brick_width: self.width / 14.
-    brick_height: self.width / 10.3
-    aux_text_size: (self.width * self.height) / (self.width + self.height) / 12
+    limits: self.difficulty_to_limits[int(difficulty_level_slider.value)]
+
+    width_brick_ratio: 13
+    min_width_brick_ratio: 10
+
+    brick_width: self.width / (self.width_brick_ratio + 0.5)
+    brick_height: self.brick_width * 1.36
+    panel_height: self.width / 10.3
+    aux_text_size: (self.width * self.height) / (self.width + self.height) / 12.
 
     title_lines: ['ArithmeBricks', '', 'by zuo']
 
@@ -34,7 +40,7 @@
             Rectangle:
                 pos: self.pos
                 size: self.size
-        height: root.brick_height
+        height: root.panel_height
         width: root.width
         x: 0
         y: 0
@@ -72,15 +78,15 @@
             color: (0.75, 0.9, 1, 1) if root.playing else (1, 1, 1, 1)
             font_size: self.height / 2.8
             on_press:
-                if root.playing: root.popup_new_game(difficulty_level_slider.value)
-                else: root.new_game(difficulty_level_slider.value)
+                if root.playing: root.popup_new_game()
+                else: root.new_game()
 
 
 <Brick>:
     width: app.root.brick_width
     height: app.root.brick_height
     x: min(max(self.x, 0), app.root.width - self.width)
-    y: min(max(self.y, self.height + 2), app.root.height - self.height)
+    y: min(max(self.y, app.root.panel_height + 2), app.root.height - self.height)
 
     bold: True
     font_size: app.root.brick_height

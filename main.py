@@ -40,6 +40,7 @@ from kivy.properties import (
     BooleanProperty,
     NumericProperty,
     ListProperty,
+    ObjectProperty,
     OptionProperty,
     ReferenceListProperty,
 )
@@ -126,7 +127,7 @@ DIFFICULTY_TO_LIMITS = [
         min_number=0,
         max_number=10,
         max_total_number=40,
-        max_symbols_per_equality=8,
+        max_symbols_per_equality=9,
     ),
     # 7
     dict(
@@ -209,19 +210,27 @@ class ArithmeBricksApp(App):
 
 class ArithmeBricksGame(Widget):
 
+    difficulty_to_limits = DIFFICULTY_TO_LIMITS
+
     playing = BooleanProperty(False)
     finished = BooleanProperty(False)
 
     # NOTE: values of properties without defaults
     # shall be set in the .kv file
+    limits = ObjectProperty()
+    width_brick_ratio = NumericProperty()
+    min_width_brick_ratio = NumericProperty()
     brick_width = NumericProperty()
     brick_height = NumericProperty()
+    panel_height = NumericProperty()
+    aux_text_size = NumericProperty()
+
     title_lines = ListProperty()
 
-    def new_game(self, difficulty):
+    def new_game(self):
         self.playing = self.finished = False
         self.clear_bricks()
-        self.provide_bricks(difficulty)
+        self.provide_bricks()
         self.playing = True
 
     def clear_bricks(self):
@@ -229,8 +238,12 @@ class ArithmeBricksGame(Widget):
             Animation.cancel_all(brick)
             self.remove_widget(brick)
 
-    def provide_bricks(self, difficulty):
-        for symbol in SymbolGenerator(difficulty):
+    def provide_bricks(self):
+        limits = self.limits
+        self.width_brick_ratio = max(
+            self.min_width_brick_ratio,
+            limits['max_symbols_per_equality']) + limits['equalities'] - 1
+        for symbol in SymbolGenerator(limits):
             self.add_new_brick(symbol)
 
     def add_new_brick(self, symbol):
@@ -276,10 +289,10 @@ class ArithmeBricksGame(Widget):
     def popup_quit(self):
         QuitPopup().open()
 
-    def popup_new_game(self, difficulty_level):
+    def popup_new_game(self):
         def on_dismiss(popup):
             if popup.user_decision:
-                self.new_game(difficulty_level)
+                self.new_game()
         NewGamePopup(on_dismiss=on_dismiss).open()
 
     def show_title(self):
@@ -557,9 +570,8 @@ class SymbolGenerator(object):
     class _FailedToMakeEquality(Exception):
         pass
 
-    def __init__(self, difficulty):
-        self.difficulty = int(difficulty)
-        vars(self).update(DIFFICULTY_TO_LIMITS[self.difficulty])
+    def __init__(self, limits):
+        vars(self).update(limits)
 
     def __iter__(self):
         while True:
