@@ -172,7 +172,7 @@ SOUND_ID_TO_SYMBOL = {
 HELP_TEXT = (
     'Drag and drop the bricks (digits and operators) '
     'to form valid equalities (e.g. [i]2+10=15-3[/i]).\n'
-    'All given bricks should be used. '
+    'All given bricks must be used. '
     'There is always at least one valid solution.'
 )
 

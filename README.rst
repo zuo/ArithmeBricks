@@ -27,7 +27,7 @@ Use the slider at the bottom of the screen to choose the difficulty
 level; then press the *New game*/*Play more* button.
 
 Drag and drop the bricks (digits and operators) to form one or more
-valid equalities, such as *2+10=15-3*.  All given bricks should be
+valid equalities, such as *2+10=15-3*.  All given bricks must be
 used.  There is always at least one valid solution.
 
 
