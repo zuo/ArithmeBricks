@@ -608,14 +608,21 @@ class SymbolGenerator(object):
                 break
 
     def are_too_easy(self, generated_symbols):
+        if len(generated_symbols) < self.max_symbols_per_equality - 3:
+            # eliminate symbol sets that include too few symbols
+            return True
+        if (generated_symbols.count('1') >
+              max(2, len(generated_symbols) / (3 + self.equalities))):
+            # eliminate boring symbol sets including too many '1'
+            return True
         muls_and_divs = (generated_symbols.count('*') +
                          generated_symbols.count('/'))
         if ('*' in self.ops or '/' in self.ops) and not muls_and_divs:
-            # we want to eliminate symbol sets that include neither
+            # eliminate symbol sets that include neither
             # '*' nor '/' when any of that operators is available
             return True
-        # we also want to eliminate symbol sets that are too easy because of
-        # the possibility of `... + 0 * <any digits>` and similar tricks with 0
+        # eliminate symbol sets that are too easy because of possibility of
+        # tricks involving '0' combined with '*' or '/' and arbitrary digits
         zeros = generated_symbols.count('0')
         if not zeros:
             return False
@@ -666,7 +673,9 @@ class SymbolGenerator(object):
             symbols = draft_symbols
             if len(symbols) > (cur_max_symbols -
                                max_num_digits -
-                               random.randint(1, max_num_digits + 2)):
+                               random.randint(1, (self.equalities +
+                                                  max_num_digits -
+                                                  1))):
                 break
         else:
             raise self._FailedToMakeEquality
@@ -701,14 +710,12 @@ class SymbolGenerator(object):
                                                self.max_number,
                                                self.max_total_number)
                 num1 = total_num * num2
-            num1_str = str(num1)
-            num2_str = str(num2)
+            symbols = list(str(num1))
+            symbols.append(op)
+            symbols.extend(str(num2))
             if (self.min_number <= num1 <= self.max_total_number and
                   self.min_number <= num2 <= self.max_number and
-                  len(num1_str + op + num2_str) <= cur_max_symbols):
-                symbols = list(num1_str)
-                symbols.append(op)
-                symbols.extend(num2_str)
+                  len(symbols) <= cur_max_symbols):
                 return symbols
         raise self._FailedToMakeEquality
 
