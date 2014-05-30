@@ -342,6 +342,8 @@ class Brick(DragBehavior, Label):
 
     max_snap_x_distance = NumericProperty()
     max_snap_y_distance = NumericProperty()
+    max_double_attach_x_distance = NumericProperty()
+    max_double_attach_y_distance = NumericProperty()
 
     target_x = NumericProperty(0)
     target_y = NumericProperty(0)
@@ -371,8 +373,11 @@ class Brick(DragBehavior, Label):
     def symbol(self):
         return self.text
 
+    # event dispatch
+
     def on_touch_down(self, touch):
         if self.state != 'final' and super(Brick, self).on_touch_down(touch):
+            self.update_states_before_detach()
             self.detach()
             self.state = 'move'
             return True
@@ -380,23 +385,16 @@ class Brick(DragBehavior, Label):
 
     def on_touch_up(self, touch):
         if self.state != 'final' and super(Brick, self).on_touch_up(touch):
-            assert self.state == 'move'
             self.target_pos = self.pos
-            if not self.try_to_attach():
+            assert self.state == 'move'
+            if self.attach():
+                self.update_states_after_attach()
+            else:
                 self.state = 'detached'
             return True
         return False
 
-    def detach(self):
-        self.update_states_before_detach()
-        left_brick = self.left_attached_brick
-        if left_brick is not None:
-            left_brick.right_attached_brick = None
-            self.left_attached_brick = None
-        right_brick = self.right_attached_brick
-        if right_brick is not None:
-            right_brick.left_attached_brick = None
-            self.right_attached_brick = None
+    # detaching
 
     def update_states_before_detach(self):
         for brick_seq in (self.collect_all_left(),
@@ -411,32 +409,140 @@ class Brick(DragBehavior, Label):
                     for brick in brick_seq:
                         brick.state = 'attached'
 
-    def try_to_attach(self):
-        left_brick = self.choose_for_left()
-        right_brick = self.choose_for_right()
-        if left_brick is None and right_brick is None:
-            return False
-        self.attach(left_brick, right_brick)
-        self.update_states_after_attach()
-        return True
-
-    def attach(self, left_brick, right_brick):
-        target_pos = None
+    def detach(self):
+        left_brick = self.left_attached_brick
         if left_brick is not None:
-            left_brick.right_attached_brick = self.proxy_ref
-            self.left_attached_brick = left_brick.proxy_ref
-            target_pos = left_brick.target_right_pos
+            left_brick.right_attached_brick = None
+            self.left_attached_brick = None
+        right_brick = self.right_attached_brick
         if right_brick is not None:
-            right_brick.left_attached_brick = self.proxy_ref
-            self.right_attached_brick = right_brick.proxy_ref
-            target_pos = (right_brick.target_x - self.width,
-                          right_brick.target_y)
-            if left_brick is not None:
-                target_pos = interpolate(tuple(left_brick.target_right_pos),
-                                         target_pos,
-                                         step=2)
+            right_brick.left_attached_brick = None
+            self.right_attached_brick = None
+
+    # attaching
+
+    def attach(self):
+        (left_brick,
+         right_brick,
+         target_pos) = self.get_bricks_and_target_pos()
         if target_pos is not None:
+            if left_brick is not None:
+                left_brick.right_attached_brick = self.proxy_ref
+                self.left_attached_brick = left_brick.proxy_ref
+            if right_brick is not None:
+                right_brick.left_attached_brick = self.proxy_ref
+                self.right_attached_brick = right_brick.proxy_ref
             self.target_pos = target_pos
+            return True
+        return False
+
+    def get_bricks_and_target_pos(self):
+        left_brick = self.choose_left_brick()
+        right_brick = self.choose_right_brick()
+        if right_brick is not None:
+            target_pos_by_right = (right_brick.target_x - self.width,
+                                   right_brick.target_y)
+            if left_brick is not None:
+                target_pos_by_left = tuple(left_brick.target_right_pos)
+                distance_from_left = (Vector(self.target_pos)
+                                      .distance(left_brick.target_right_pos))
+                distance_from_right = (Vector(self.target_right_pos)
+                                       .distance(right_brick.target_pos))
+                if self.can_attach_to_both(
+                        left_brick, right_brick,
+                        target_pos_by_left, target_pos_by_right,
+                        distance_from_left, distance_from_right):
+                    target_pos = interpolate(target_pos_by_left,
+                                             target_pos_by_right,
+                                             step=2)
+                elif self.should_attach_to_left(
+                        left_brick, right_brick,
+                        distance_from_left, distance_from_right):
+                    target_pos = target_pos_by_left
+                    right_brick = None
+                else:
+                    target_pos = target_pos_by_right
+                    left_brick = None
+            else:
+                target_pos = target_pos_by_right
+        elif left_brick is not None:
+            target_pos = left_brick.target_right_pos
+        else:
+            target_pos = None
+        return left_brick, right_brick, target_pos
+
+    def choose_left_brick(self):
+        _distance = Vector(self.target_pos).distance
+        bricks_and_distances = [
+            (brick,
+             _distance(brick.target_right_pos),
+             abs(self.target_x - brick.target_right))
+            for brick in self.iter_all_bricks()
+            if brick.right_attached_brick is None]
+        return self.get_attachable_brick(bricks_and_distances)
+
+    def choose_right_brick(self):
+        _distance = Vector(self.target_right_pos).distance
+        bricks_and_distances = [
+            (brick,
+             _distance(brick.target_pos),
+             abs(self.target_right - brick.target_x))
+            for brick in self.iter_all_bricks()
+            if brick.left_attached_brick is None]
+        return self.get_attachable_brick(bricks_and_distances)
+
+    def get_attachable_brick(self, bricks_and_distances):
+        bricks_and_distances.sort(key=operator.itemgetter(1))
+        for brick, _, x_distance in bricks_and_distances:
+            if brick == self:
+                continue
+            # (for checking snap limits, using x and y separately
+            # plays better than using the real x*y distance)
+            y_distance = abs(self.target_y - brick.target_y)
+            if (x_distance > self.max_snap_x_distance or
+                  y_distance > self.max_snap_y_distance):
+                return None
+            if self.can_be_attached_to(brick):
+                return brick
+
+    def can_be_attached_to(self, brick):
+        return brick.state != 'move'
+
+    def can_attach_to_both(self, left_brick, right_brick,
+                           target_pos_by_left, target_pos_by_right,
+                           distance_from_left, distance_from_right):
+        return (Vector(target_pos_by_left).distance(target_pos_by_right) <
+                self.width / 3) or (
+                    (distance_from_right / 3.5 <=
+                     distance_from_left <=
+                     3.5 * distance_from_right) and
+                    (abs(self.target_x - left_brick.target_right) <=
+                     self.max_double_attach_x_distance) and
+                    (abs(self.target_y - left_brick.target_y) <=
+                     self.max_double_attach_y_distance) and
+                    (abs(self.target_right - right_brick.target_x) <=
+                     self.max_double_attach_x_distance) and
+                    (abs(self.target_y - right_brick.target_y) <=
+                     self.max_double_attach_y_distance))
+
+    def should_attach_to_left(self, left_brick, right_brick,
+                              distance_from_left, distance_from_right):
+        from_left = abs(self.target_y - left_brick.target_y)
+        from_right = abs(self.target_y - right_brick.target_y)
+        if (from_left < self.height / 4 and
+            from_right < self.height / 4) or (
+                from_right / 1.4 <=
+                from_left <=
+                1.4 * from_right):
+            # y distances are too small or too similar to
+            # be conclusive => let's use real x*y distances
+            from_left = distance_from_left
+            from_right = distance_from_right
+        if from_left <= from_right:
+            return True
+        else:
+            assert from_left > from_right
+            return False
 
     def update_states_after_attach(self):
         brick_seq = self.collect_all_left()
@@ -453,6 +559,8 @@ class Brick(DragBehavior, Label):
         else:
             for brick in brick_seq:
                 brick.state = 'attached'
+
+    # commons
 
     def collect_all_left(self, brick_seq=None):
         if brick_seq is None:
@@ -481,45 +589,8 @@ class Brick(DragBehavior, Label):
         except (SyntaxError, ArithmeticError):
             return False
 
-    def choose_for_left(self):
-        _distance = Vector(self.target_pos).distance
-        bricks_and_distances = [
-            (brick,
-             _distance(brick.target_right_pos),
-             abs(self.target_x - brick.target_right))
-            for brick in self.iter_all_bricks()
-            if brick.right_attached_brick is None]
-        return self.get_attachable_brick(bricks_and_distances)
-
-    def choose_for_right(self):
-        _distance = Vector(self.target_right_pos).distance
-        bricks_and_distances = [
-            (brick,
-             _distance(brick.target_pos),
-             abs(self.target_right - brick.target_x))
-            for brick in self.iter_all_bricks()
-            if brick.left_attached_brick is None]
-        return self.get_attachable_brick(bricks_and_distances)
-
-    def get_attachable_brick(self, bricks_and_distances):
-        bricks_and_distances.sort(key=operator.itemgetter(1))
-        for brick, _, x_distance in bricks_and_distances:
-            if brick == self:
-                continue
-            # (for checking snap limits, using x and y separately
-            # plays better than using the real x*y distance)
-            y_distance = abs(self.target_y - brick.target_y)
-            if (x_distance > self.max_snap_x_distance or
-                  y_distance > self.max_snap_y_distance):
-                return None
-            if self.can_be_attached_to(brick):
-                return brick
-
     def iter_all_bricks(self):
         return self.parent.iter_all_bricks()
-
-    def can_be_attached_to(self, brick):
-        return brick.state != 'move'
 
 
 class DigitBrick(Brick):
