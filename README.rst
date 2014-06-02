@@ -38,5 +38,5 @@ Additional notes
   `ZynAddSubFX <http://zynaddsubfx.sourceforge.net/>`_ and
   `Renoise <http://renoise.com/>`_.
 
-* The *Arithmebricks* game won the 3rd place in the `Kivy App Contest
-  2014 <http://kivy.org/#contest>`_.
+* The game won the 3rd place in the `Kivy App Contest 2014
+  <http://kivy.org/#contest>`_.
