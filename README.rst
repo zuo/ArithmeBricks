@@ -13,8 +13,9 @@ Installation is typical for applications based on the Kivy
 library: download Kivy and follow the instructions for your
 particular platform - see: http://kivy.org/#download
 
-Up to now, the game has been tested only on Linux but let's hope
-it works on other platforms as well. (That was the intention.) :)
+Up to now, the game has been tested on Linux (and superficially
+on Android) but let's hope it works on other platforms as well.
+(That was the intention.) :)
 
 The main script/program of the game is, naturally, the *main.py*
 file.
