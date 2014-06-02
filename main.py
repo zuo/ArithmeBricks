@@ -65,8 +65,7 @@ SYMBOL_TO_BRICK_TEXT = {
 BRICK_TEXT_TO_SYMBOL = {
     text: symbol for symbol, text in SYMBOL_TO_BRICK_TEXT.items()}
 
-DIFFICULTY_TO_LIMITS = [
-    # 0
+DIFFICULTY_LEVEL_LIMITS = [
     dict(
         equalities=1,
         ops='+',
@@ -75,85 +74,108 @@ DIFFICULTY_TO_LIMITS = [
         max_total_number=8,
         max_symbols_per_equality=6,
     ),
-    # 1
     dict(
         equalities=1,
-        ops='+-',
+        ops='-',
         min_number=1,
-        max_number=4,
-        max_total_number=9,
+        max_number=8,
+        max_total_number=8,
         max_symbols_per_equality=6,
     ),
-    # 2
     dict(
         equalities=1,
         ops='+-',
         min_number=0,
-        max_number=10,
-        max_total_number=20,
-        max_symbols_per_equality=10,
+        max_number=8,
+        max_total_number=10,
+        max_symbols_per_equality=7,
     ),
-    # 3
+    dict(
+        equalities=1,
+        ops='*',
+        min_number=0,
+        max_number=4,
+        max_total_number=9,
+        max_symbols_per_equality=6,
+    ),
+    dict(
+        equalities=1,
+        ops='/',
+        min_number=0,
+        max_number=9,
+        max_total_number=9,
+        max_symbols_per_equality=6,
+    ),
     dict(
         equalities=1,
         ops='+-*',
+        min_number=2,
+        max_number=10,
+        max_total_number=12,
+        max_symbols_per_equality=8,
+    ),
+    dict(
+        equalities=1,
+        ops='+-/',
+        min_number=0,
+        max_number=10,
+        max_total_number=12,
+        max_symbols_per_equality=9,
+    ),
+    dict(
+        equalities=1,
+        ops='+-*/',
+        min_number=0,
+        max_number=10,
+        max_total_number=12,
+        max_symbols_per_equality=10,
+    ),
+    dict(
+        equalities=1,
+        ops='+-*/',
         min_number=0,
         max_number=10,
         max_total_number=20,
         max_symbols_per_equality=11,
     ),
-    # 4
     dict(
         equalities=1,
         ops='+-*/',
         min_number=0,
-        max_number=10,
-        max_total_number=20,
-        max_symbols_per_equality=12,
-    ),
-    # 5
-    dict(
-        equalities=1,
-        ops='+-*/',
-        min_number=0,
-        max_number=10,
+        max_number=20,
         max_total_number=100,
         max_symbols_per_equality=13,
     ),
-    # 6
-    dict(
-        equalities=2,
-        ops='+-*',
-        min_number=0,
-        max_number=10,
-        max_total_number=40,
-        max_symbols_per_equality=9,
-    ),
-    # 7
     dict(
         equalities=2,
         ops='+-*/',
         min_number=0,
         max_number=10,
-        max_total_number=100,
-        max_symbols_per_equality=10,
+        max_total_number=40,
+        max_symbols_per_equality=8,
     ),
-    # 8
     dict(
         equalities=2,
         ops='+-*/',
         min_number=0,
         max_number=20,
-        max_total_number=1000,
-        max_symbols_per_equality=12,
+        max_total_number=100,
+        max_symbols_per_equality=9,
     ),
-    # 9
+    dict(
+        equalities=3,
+        ops='+-*/',
+        min_number=0,
+        max_number=40,
+        max_total_number=1000,
+        max_symbols_per_equality=10,
+    ),
     dict(
         equalities=3,
         ops='+-*/',
         min_number=0,
         max_number=50,
-        max_total_number=2000,
+        max_total_number=5000,
         max_symbols_per_equality=12,
     ),
 ]
@@ -210,7 +232,7 @@ class ArithmeBricksApp(App):
 
 class ArithmeBricksGame(Widget):
 
-    difficulty_to_limits = DIFFICULTY_TO_LIMITS
+    difficulty_level_limits = DIFFICULTY_LEVEL_LIMITS
 
     playing = BooleanProperty(False)
     finished = BooleanProperty(False)
@@ -226,6 +248,10 @@ class ArithmeBricksGame(Widget):
     aux_text_size = NumericProperty()
 
     title_lines = ListProperty()
+
+    def __init__(self, *args, **kwargs):
+        super(ArithmeBricksGame, self).__init__(*args, **kwargs)
+        self.symbol_generator = SymbolGenerator()
 
     def new_game(self):
         self.playing = self.finished = False
@@ -243,7 +269,7 @@ class ArithmeBricksGame(Widget):
         self.width_brick_ratio = max(
             self.min_width_brick_ratio,
             limits['max_symbols_per_equality']) + limits['equalities'] - 1
-        for symbol in SymbolGenerator(limits):
+        for symbol in self.symbol_generator(limits):
             self.add_new_brick(symbol)
 
     def add_new_brick(self, symbol):
@@ -424,19 +450,18 @@ class Brick(DragBehavior, Label):
     def attach(self):
         (left_brick,
          right_brick,
-         target_pos) = self.get_bricks_and_target_pos()
+         target_pos) = self.get_left_right_bricks_and_target_pos()
+        if left_brick is not None:
+            left_brick.right_attached_brick = self.proxy_ref
+            self.left_attached_brick = left_brick.proxy_ref
+        if right_brick is not None:
+            right_brick.left_attached_brick = self.proxy_ref
+            self.right_attached_brick = right_brick.proxy_ref
         if target_pos is not None:
-            if left_brick is not None:
-                left_brick.right_attached_brick = self.proxy_ref
-                self.left_attached_brick = left_brick.proxy_ref
-            if right_brick is not None:
-                right_brick.left_attached_brick = self.proxy_ref
-                self.right_attached_brick = right_brick.proxy_ref
             self.target_pos = target_pos
-            return True
-        return False
+        return left_brick is not None or right_brick is not None
 
-    def get_bricks_and_target_pos(self):
+    def get_left_right_bricks_and_target_pos(self):
         left_brick = self.choose_left_brick()
         right_brick = self.choose_right_brick()
         if right_brick is not None:
@@ -516,6 +541,8 @@ class Brick(DragBehavior, Label):
                     (distance_from_right / 3.5 <=
                      distance_from_left <=
                      3.5 * distance_from_right) and
+                    # (for checking snap limits, using x and y separately
+                    # plays better than using the real x*y distance)
                     (abs(self.target_x - left_brick.target_right) <=
                      self.max_double_attach_x_distance) and
                     (abs(self.target_y - left_brick.target_y) <=
@@ -527,6 +554,8 @@ class Brick(DragBehavior, Label):
 
     def should_attach_to_left(self, left_brick, right_brick,
                               distance_from_left, distance_from_right):
+        # (for choosing the side, comparing y distances often
+        # seems to play better than comparing real x*y distances)
         from_left = abs(self.target_y - left_brick.target_y)
         from_right = abs(self.target_y - right_brick.target_y)
         if (from_left < self.height / 4 and
@@ -534,8 +563,8 @@ class Brick(DragBehavior, Label):
                 from_right / 1.4 <=
                 from_left <=
                 1.4 * from_right):
-            # y distances are too small or too similar to
-            # be conclusive => let's use real x*y distances
+            # y distances are too small or too similar to be
+            # conclusive => let's compare real x*y distances
             from_left = distance_from_left
             from_right = distance_from_right
         if from_left <= from_right:
@@ -641,15 +670,16 @@ class SymbolGenerator(object):
     class _FailedToMakeEquality(Exception):
         pass
 
-    def __init__(self, limits):
-        vars(self).update(limits)
+    def __init__(self):
+        self.previous_symbol_set = frozenset()
 
-    def __iter__(self):
+    def __call__(self, limits):
+        vars(self).update(limits)
         while True:
             generated_symbols = list(self.generate_symbols())
-            if self.are_too_easy(generated_symbols):
-                continue
-            return iter(generated_symbols)
+            if not (self.are_too_easy(generated_symbols) or
+                    self.are_too_similar_to_previous(generated_symbols)):
+                return iter(generated_symbols)
 
     def generate_symbols(self):
         equalities = self.equalities
@@ -709,6 +739,13 @@ class SymbolGenerator(object):
             # sometimes we are lenient :) (but never on harder levels)
             return False
         return True
+
+    def are_too_similar_to_previous(self, generated_symbols):
+        generated_symbol_set = frozenset(generated_symbols)
+        if generated_symbol_set == self.previous_symbol_set:
+            return True
+        self.previous_symbol_set = generated_symbol_set
+        return False
 
     def make_left_side(self, cur_max_symbols, max_num_digits):
         num = div_mul_operand = random.randint(self.min_number,

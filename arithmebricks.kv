@@ -4,7 +4,7 @@
 
 
 <ArithmeBricksGame>:
-    limits: self.difficulty_to_limits[int(difficulty_level_slider.value)]
+    limits: self.difficulty_level_limits[int(difficulty_level_slider.value) - 1]
 
     width_brick_ratio: 13
     min_width_brick_ratio: 10
@@ -65,8 +65,9 @@
         Slider:
             id: difficulty_level_slider
             size_hint: (0.4, 1)
-            min: 0
-            max: 9
+            value: 1
+            min: 1
+            max: len(root.difficulty_level_limits)
             step: 1
         Label:
             size_hint: (0.02, 1)
