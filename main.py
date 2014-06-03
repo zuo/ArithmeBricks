@@ -48,7 +48,7 @@ from kivy.uix.behaviors import DragBehavior
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
-from kivy.utils import QueryDict, interpolate, platform
+from kivy.utils import interpolate, platform
 from kivy.vector import Vector
 
 
@@ -220,7 +220,7 @@ class ArithmeBricksApp(App):
         return game
 
     def load_sounds(self):
-        self.symbol_to_sound = QueryDict()
+        self.symbol_to_sound = {}
         sound_ids = list('0123456789') + list(SOUND_ID_TO_SYMBOL)
         for sound_id in sound_ids:
             filename = SOUND_FILENAME_PATTERN.format(sound_id)
