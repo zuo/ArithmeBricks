@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import division, unicode_literals
 
+import collections
 import functools
 import operator
 import random
@@ -189,6 +190,8 @@ DIFFICULTY_LEVEL_LIMITS = [
 ]
 
 MAX_RETRY = 40
+
+MIN_REPEATING_SYMBOL_COMBINATION_INTERVAL = 4
 
 SOUND_FILENAME_PATTERN = 'sounds/arithmebricks-{0}_Seq01.wav'
 SOUND_ID_TO_SYMBOL = {
@@ -679,14 +682,15 @@ class SymbolGenerator(object):
         pass
 
     def __init__(self):
-        self.previous_symbol_set = frozenset()
+        self.recent_symbol_combinations = collections.deque(
+            maxlen=MIN_REPEATING_SYMBOL_COMBINATION_INTERVAL)
 
     def __call__(self, limits):
         vars(self).update(limits)
         while True:
             generated_symbols = list(self.generate_symbols())
             if not (self.are_too_easy(generated_symbols) or
-                    self.are_too_similar_to_previous(generated_symbols)):
+                    self.repeated_too_soon(generated_symbols)):
                 return iter(generated_symbols)
 
     def generate_symbols(self):
@@ -717,21 +721,37 @@ class SymbolGenerator(object):
                 break
 
     def are_too_easy(self, generated_symbols):
+        # eliminate symbol combinations that include too few symbols
         if len(generated_symbols) < self.max_symbols_per_equality - 3:
-            # eliminate symbol sets that include too few symbols
             return True
-        if (generated_symbols.count('1') >
-              max(2, len(generated_symbols) / (3 + self.equalities))):
-            # eliminate boring symbol sets including too many '1'
+
+        ones = generated_symbols.count('1')
+
+        # eliminate boring symbol combinations that include too many '1'
+        if ones > max(2, len(generated_symbols) / (3 + self.equalities)):
             return True
+
+        # when there are few symbols: often (but not always)
+        # eliminate lone multiplications/divisions by 1
+        if ones and len(generated_symbols) <= 5:
+            symbol_set = set(generated_symbols)
+            if ((random.randint(1, 8) < 8 and
+                   len(symbol_set.difference(('==', '*', '1'))) == 1) or
+                (random.randint(1, 3) < 3 and
+                   len(symbol_set.difference(('==', '/', '1'))) == 1)):
+                return True
+
         muls_and_divs = (generated_symbols.count('*') +
                          generated_symbols.count('/'))
+
+        # eliminate symbol combinations that include neither
+        # '*' nor '/' when any of that operators is available
         if ('*' in self.ops or '/' in self.ops) and not muls_and_divs:
-            # eliminate symbol sets that include neither
-            # '*' nor '/' when any of that operators is available
             return True
-        # eliminate symbol sets that are too easy because of possibility of
-        # tricks involving '0' combined with '*' or '/' and arbitrary digits
+
+        # eliminate symbol combinations that are too easy because
+        # of possibility of tricks involving '0' combined with '*'
+        # or '/' and arbitrary digits (such as '2=2+0*17346348')
         zeros = generated_symbols.count('0')
         if not zeros:
             return False
@@ -748,11 +768,11 @@ class SymbolGenerator(object):
             return False
         return True
 
-    def are_too_similar_to_previous(self, generated_symbols):
-        generated_symbol_set = frozenset(generated_symbols)
-        if generated_symbol_set == self.previous_symbol_set:
+    def repeated_too_soon(self, generated_symbols):
+        symbol_combination = tuple(sorted(generated_symbols))
+        if symbol_combination in self.recent_symbol_combinations:
             return True
-        self.previous_symbol_set = generated_symbol_set
+        self.recent_symbol_combinations.append(symbol_combination)
         return False
 
     def make_left_side(self, cur_max_symbols, max_num_digits):
