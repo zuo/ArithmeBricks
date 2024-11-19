@@ -37,7 +37,7 @@ Additional notes
 
 * Sound samples have been made by the author, using
   `ZynAddSubFX <http://zynaddsubfx.sourceforge.net/>`_ and
-  `Renoise <http://renoise.com/>`_.
+  `Renoise <https://www.renoise.com/>`_.
 
 * The game won the 3rd place in the `Kivy App Contest 2014
-  <http://kivy.org/#contest>`_.
+  <https://kivy.org/contest-2014.html>`_.
