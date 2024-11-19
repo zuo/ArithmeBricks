@@ -11,7 +11,7 @@ How to install and run
 
 Installation is typical for applications based on the Kivy
 library: download Kivy and follow the instructions for your
-particular platform - see: http://kivy.org/#download
+particular platform - see: https://kivy.org/#download
 
 Up to now, the game has been tested on Linux (and superficially
 on Android) but let's hope it works on other platforms as well.
@@ -36,7 +36,7 @@ Additional notes
 ----------------
 
 * Sound samples have been made by the author, using
-  `ZynAddSubFX <http://zynaddsubfx.sourceforge.net/>`_ and
+  `ZynAddSubFX <https://zynaddsubfx.sourceforge.net/>`_ and
   `Renoise <https://www.renoise.com/>`_.
 
 * The game won the 3rd place in the `Kivy App Contest 2014
